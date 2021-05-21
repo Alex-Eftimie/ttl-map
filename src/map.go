@@ -45,7 +45,8 @@ func (m *TTLMap) Len() int {
 func (m *TTLMap) Put(k string, v interface{}) {
 	m.l.Lock()
 	it, ok := m.m[k]
-	if !ok {
+	if !ok || (ok && v != it.Value) {
+		delete(m.m, k)
 		it = &item{Value: v}
 		m.m[k] = it
 	}
