@@ -13,6 +13,7 @@ type item struct {
 }
 
 type TTLMap struct {
+	filled bool
 	m      map[string]*item
 	l      sync.Mutex
 	maxTTL int
@@ -21,9 +22,13 @@ type TTLMap struct {
 func New(ln int, maxTTL int) (m *TTLMap) {
 	m = &TTLMap{m: make(map[string]*item, ln), maxTTL: maxTTL}
 	m.runcleaner()
+	m.filled = true
 	return m
 }
 
+func (m *TTLMap) IsNil() bool {
+	return !m.filled
+}
 func (m *TTLMap) runcleaner() {
 	go func() {
 		for now := range time.Tick(time.Second) {
@@ -61,7 +66,7 @@ func (m *TTLMap) Get(k string) (v interface{}) {
 		it.LastAccess = time.Now().Unix()
 	}
 	m.l.Unlock()
-	return
+	return v
 
 }
 
@@ -77,6 +82,9 @@ func (m *TTLMap) MarshalJSON() ([]byte, error) {
 }
 
 func (m *TTLMap) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 || string(b) == "{}" {
+		return nil
+	}
 	mymap := make(map[string]*item)
 	s := &struct {
 		M map[string]*item
@@ -94,6 +102,7 @@ func (m *TTLMap) UnmarshalJSON(b []byte) error {
 	m.m = mymap
 	m.maxTTL = s.T
 	m.runcleaner()
+	m.filled = true
 
 	return nil
 }
